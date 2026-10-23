@@ -1,0 +1,10 @@
+{
+  "name": "snow-plugin-mimo-tts",
+  "version": "1.0.3",
+  "private": true,
+  "type": "module",
+  "description": "Snow App 面板插件：用小米 MiMo TTS 朗读助手回复（预置 / 设计 / 复刻音色，分句流水线播放）",
+  "scripts": {
+    "test": "node test/run.mjs && node test/player.mjs && node test/regress.mjs && node test/round2.mjs && node test/smoke.mjs && node test/pipeline.mjs"
+  }
+}
