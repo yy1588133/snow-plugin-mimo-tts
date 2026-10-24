@@ -6,17 +6,17 @@
 
 ## 安装
 
-插件源码在 `snow-plugin-mimo-tts/`，已经安装到 `~/.snowapp/plugins/com.snowai.mimo-tts/`。
+1. 打开 Snow App 侧边栏底部的 **插件** 页面，切到 **插件市场**。
+2. 搜索「语音朗读」或 `com.snowai.mimo-tts`，点 **安装**。
+3. 装好后从顶栏 **加号菜单 → 插件 → 语音朗读**，或右侧面板的插件入口打开。
 
-改代码后重新安装（原地覆盖、保留启用状态）：
+市场安装会按索引里的 SHA-256 校验 Release 资产；插件本体由本仓库的 Release 分发，安装后默认启用。
 
-```
-config-set scope=plugins key="new" value={sourceDir: "C:/Users/yangyang/.snowapp/workspace/sno*****************"}
-```
+## 开发
 
-**改代码请同时把 `plugin.json` 的 `version` 加一**：宿主每次打开面板都会重新 import 一份模块，插件为了让「关掉面板后播放继续、重开还能接管」成立，会在版本号相同的重开里复用上一个模块实例；只有版本号变了才销毁旧实例、加载新代码。
+改完代码请把 `plugin.json` 的 `version` 加一：宿主每次打开面板都会重新 import 一份模块，插件为了让「关掉面板后播放继续、重开还能接管」成立，会在版本号相同的重开里复用上一个模块实例；只有版本号变了才销毁旧实例、加载新代码。发版时同步更新 `package.json` 与 `index.js` 的 `FALLBACK_VERSION`，再按新版本打包 zip、发 Release、更新市场索引条目。
 
-打开方式：顶栏 **加号菜单 → 插件 → 语音朗读**，或右侧面板的插件入口。
+本地测试：`npm test` 跑全部离线套件；需要真实接口的端到端测试见文末。
 
 ## 首次使用
 
