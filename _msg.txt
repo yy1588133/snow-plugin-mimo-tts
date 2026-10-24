@@ -1,5 +1,0 @@
-chore: 准备插件市场发布
-
-- 补 MIT LICENSE
-- README「安装」章节改为插件市场安装，删掉本地安装路径与重装命令
-- 新增 .gitignore，忽略 .grilling/ 过程记录
