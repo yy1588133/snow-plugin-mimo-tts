@@ -352,6 +352,30 @@ check("实例登记更新到新版本", window["__snowMimoTtsPanelVersion"] === 
 unlinkSync(second.file);
 unlinkSync(third.file);
 
+/* ---------- 5. 插槽模块（加载时没有 React）登记的 Panel 能被面板复用 ---------- */
+// 宿主给消息插槽的那份模块拷贝不一定注入 React，但它会登记 Panel 供面板复用；
+// 复用前必须能自己把 React 补回来，否则渲染直接抛「el is not a function」。
+const savedReact = window.SnowAppPlugin.React;
+delete window.SnowAppPlugin.React;
+delete window.__snowMimoTtsPanel;
+delete window.__snowMimoTtsPanelVersion;
+delete window.__snowMimoTtsDispose;
+const slim = await copy("slim");
+window.SnowAppPlugin.React = savedReact;
+const slimPanel = window.__snowMimoTtsPanel;
+check("插槽模块登记了可复用的 Panel", typeof slimPanel === "function");
+if (typeof slimPanel === "function") {
+  try {
+    const mounted = mount(slimPanel, { api: fakeApi });
+    check("复用无 React 的 Panel 时自动补上 React", !!mounted.tree, !!mounted.tree);
+    mounted.cleanups.forEach((c) => c());
+  } catch (e) {
+    failures++;
+    console.log("FAIL  复用无 React 的 Panel 时抛错  → " + String((e && e.stack) || e));
+  }
+}
+unlinkSync(slim.file);
+
 console.log(failures === 0 ? "\n冒烟：ALL PASS" : "\n冒烟：" + failures + " 项失败");
 try {
   unlinkSync(generated);

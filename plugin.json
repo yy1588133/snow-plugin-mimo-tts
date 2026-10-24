@@ -6,11 +6,11 @@
     "zh-TW": "語音朗讀"
   },
   "description": {
-    "default": "Read assistant replies with Xiaomi MiMo TTS: preset / designed / cloned voices, sentence pipeline playback, auto-broadcast, browser speech fallback and local audio history.",
-    "zh-CN": "接入小米 MiMo TTS 朗读助手回复：预置 / 设计 / 复刻三种音色，分句流水线播放、自动播报、浏览器本地语音兜底与本地音频历史。",
-    "zh-TW": "接入小米 MiMo TTS 朗讀助手回覆：預置 / 設計 / 複刻三種音色，分句流水線播放、自動播報、瀏覽器本地語音兜底與本地音訊歷史。"
+    "default": "Read assistant replies with Xiaomi MiMo TTS: a read-aloud icon at the end of the reply action row (same line as branch / copy), preset / designed / cloned voices, sentence pipeline playback, auto-broadcast, browser speech fallback and local audio history.",
+    "zh-CN": "接入小米 MiMo TTS 朗读助手回复：回复操作行末尾一键朗读图标（与分支 / 复制同排），预置 / 设计 / 复刻三种音色，分句流水线播放、自动播报、浏览器本地语音兜底与本地音频历史。",
+    "zh-TW": "接入小米 MiMo TTS 朗讀助手回覆：回覆操作列末尾一鍵朗讀圖示（與分支 / 複製同排），預置 / 設計 / 複刻三種音色，分句流水線播放、自動播報、瀏覽器本地語音兜底與本地音訊歷史。"
   },
-  "version": "1.0.3",
+  "version": "1.2.4",
   "author": "Snow AI",
   "license": "MIT",
   "homepage": "https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/audio/speech-synthesis-v2.5",
@@ -29,6 +29,15 @@
       "widthHint": "420px"
     }
   ],
+  "contributions": {
+    "messageFooters": [
+      {
+        "id": "speak",
+        "entry": "index.js",
+        "exportName": "mountFooter"
+      }
+    ]
+  },
   "locales": {
     "zh-CN": "locales/zh-CN.json",
     "en": "locales/en.json"
@@ -36,6 +45,6 @@
   "styles": ["style.css"],
   "privacy": {
     "scopes": ["messages", "network"],
-    "note": "读取当前会话的助手回复正文用于朗读（messages）；通过 api.net.fetch 调用小米 MiMo 语音合成接口，返回的音频只保存在本机（network）。API Key 保存在插件私有存储，不上传第三方。"
+    "note": "读取当前会话的助手回复正文用于朗读（messages）；请求小米 MiMo 语音合成接口（network：面板走 api.net.fetch，回复操作行图标走等价的宿主 HTTP 桥），返回的音频只保存在本机（network）。API Key 保存在插件私有存储，不上传第三方。"
   }
 }

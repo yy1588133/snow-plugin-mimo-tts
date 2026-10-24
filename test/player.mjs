@@ -97,7 +97,7 @@ const generated = join(tmpdir(), "mtts-player-" + process.pid + ".mjs");
 writeFileSync(
   generated,
   source +
-    "\nexport { CANCEL, createBufferPlayer, decodeAudioBlob, ensureWavBytes, getAudioCtx, playBlob, getSettings, updateSettings };\n",
+    "\nexport { CANCEL, createBufferPlayer, decodeAudioBlob, ensureWavBytes, getAudioCtx, playBlob, getSettings, updateSettings, speak, pause, resume, engineState, stop };\n",
   "utf8"
 );
 const mod = await import(pathToFileURL(generated).href);
@@ -242,6 +242,122 @@ check("改倍速失败时旧源被停止", oldSource.stopped === true, oldSource
 check("改倍速失败后重建了新源", ctx.sources.at(-1) !== oldSource, ctx.sources.length);
 rebuilt.player.stop();
 await sleep(10);
+
+/* ---------- 8. 段间暂停：合成空档里点暂停不能被吞掉 ---------- */
+function wavBase64(bytes) {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + bytes, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(24000, 24);
+  header.writeUInt32LE(48000, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(bytes, 40);
+  return Buffer.concat([header, Buffer.alloc(bytes)]).toString("base64");
+}
+
+{
+  mod.updateSettings(
+    { apiKey: "k", localMode: "off", range: "full", autoRead: false, maxChars: 200, sfx: false },
+    { persist: false }
+  );
+  const audio = wavBase64(960);
+  let resolveSecond = null;
+  let fetchCount = 0;
+  fakeApi.net = {
+    fetch() {
+      fetchCount += 1;
+      const body = { choices: [{ message: { audio: { data: audio } } }] };
+      const response = { ok: true, status: 200, bodyBase64: Buffer.from(JSON.stringify(body)).toString("base64") };
+      if (fetchCount === 1) return Promise.resolve(response);
+      // 第二段故意挂着：模拟「第一段已经播完、第二段还在合成」
+      return new Promise((resolve) => {
+        resolveSecond = () => resolve(response);
+      });
+    },
+  };
+
+  const sourcesBefore = ctx.sources.length;
+  const text = "好。" + "第二段比较长的一句话".repeat(12) + "。";
+  const speakPromise = mod.speak(text, {});
+  for (let i = 0; i < 100 && (ctx.sources.length === sourcesBefore || typeof resolveSecond !== "function"); i++) {
+    await sleep(5);
+  }
+  check("第一段已起播且第二段在合成", ctx.sources.length === sourcesBefore + 1 && typeof resolveSecond === "function", {
+    sources: ctx.sources.length - sourcesBefore,
+    pending: typeof resolveSecond,
+  });
+
+  ctx.sources.at(-1).onended();
+  await sleep(20);
+  check("第一段播完后处于合成空档", mod.engineState.status === "playing", mod.engineState.status);
+
+  mod.pause();
+  check("空档里点暂停生效", mod.engineState.status === "paused", mod.engineState.status);
+
+  resolveSecond();
+  await sleep(40);
+  check(
+    "第二段就绪但不自己响",
+    mod.engineState.status === "paused" && ctx.sources.length === sourcesBefore + 1,
+    { status: mod.engineState.status, sources: ctx.sources.length - sourcesBefore }
+  );
+
+  mod.resume();
+  await sleep(10);
+  check(
+    "继续后第二段开始播放",
+    mod.engineState.status === "playing" && ctx.sources.length === sourcesBefore + 2,
+    { status: mod.engineState.status, sources: ctx.sources.length - sourcesBefore }
+  );
+
+  ctx.sources.at(-1).onended();
+  const spoken = await speakPromise;
+  check("整段朗读正常结束", spoken === true, spoken);
+  check("结束后回到 idle", mod.engineState.status === "idle", mod.engineState.status);
+  /* 8b. 空档里暂停后立刻继续：下一段应按正常状态起播 */
+  let resolveNextSegment = null;
+  let secondRunFetch = 0;
+  const okResponse = function () {
+    const body = { choices: [{ message: { audio: { data: audio } } }] };
+    return { ok: true, status: 200, bodyBase64: Buffer.from(JSON.stringify(body)).toString("base64") };
+  };
+  fakeApi.net = {
+    fetch() {
+      secondRunFetch += 1;
+      if (secondRunFetch === 1) return Promise.resolve(okResponse());
+      return new Promise((resolve) => {
+        resolveNextSegment = () => resolve(okResponse());
+      });
+    },
+  };
+  const sourcesBefore2 = ctx.sources.length;
+  const speakPromise2 = mod.speak(text, {});
+  for (let i = 0; i < 100 && (ctx.sources.length === sourcesBefore2 || typeof resolveNextSegment !== "function"); i++) {
+    await sleep(5);
+  }
+  ctx.sources.at(-1).onended();
+  await sleep(20);
+  mod.pause();
+  mod.resume();
+  check("空档里暂停后立刻继续，状态回到播放", mod.engineState.status === "playing", mod.engineState.status);
+  resolveNextSegment();
+  await sleep(40);
+  check(
+    "下一段按正常状态起播",
+    mod.engineState.status === "playing" && ctx.sources.length === sourcesBefore2 + 2,
+    { status: mod.engineState.status, sources: ctx.sources.length - sourcesBefore2 }
+  );
+  ctx.sources.at(-1).onended();
+  check("第二次朗读正常结束", (await speakPromise2) === true);
+
+}
 
 try {
   unlinkSync(generated);
